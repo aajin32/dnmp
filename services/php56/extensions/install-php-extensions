@@ -1558,6 +1558,14 @@ buildRequiredPackageLists() {
 			ssh2@debian)
 				buildRequiredPackageLists_volatile="$buildRequiredPackageLists_volatile libssh2-1-dev"
 				;;
+			statgrab@alpine)
+				buildRequiredPackageLists_persistent="$buildRequiredPackageLists_persistent libstatgrab"
+				buildRequiredPackageLists_volatile="$buildRequiredPackageLists_volatile libstatgrab-dev"
+				;;
+			statgrab@debian)
+				buildRequiredPackageLists_persistent="$buildRequiredPackageLists_persistent ^libstatgrab[0-9]*$"
+				buildRequiredPackageLists_volatile="$buildRequiredPackageLists_volatile libstatgrab-dev"
+				;;
 			stomp@alpine)
 				buildRequiredPackageLists_persistent="$buildRequiredPackageLists_persistent $buildRequiredPackageLists_libssl"
 				buildRequiredPackageLists_volatile="$buildRequiredPackageLists_volatile $buildRequiredPackageLists_libssldev"
@@ -2382,8 +2390,10 @@ installMicrosoftSqlServerODBC() {
 			printf -- '- installing the APT package\n'
 			if test $PHP_MAJMIN_VERSION -le 703; then
 				ACCEPT_EULA=Y apt-get install -qqy --no-install-recommends msodbcsql17
-			elif test $DISTRO_VERSION_NUMBER -ge 9 && test $DISTRO_VERSION_NUMBER -le 12; then
-				# On Debian 9 to 12 we have both msodbcsql17 and msodbcsql18: let's install just one
+			elif test $DISTRO_VERSION_NUMBER -ge 9 && test $DISTRO_VERSION_NUMBER -le 13; then
+				# On Debian 9 to 13 we have both msodbcsql17 and msodbcsql18: let's install just one
+				# see https://packages.microsoft.com/debian/9/prod/pool/main/m/
+				# see https://packages.microsoft.com/debian/13/prod/pool/main/m/
 				ACCEPT_EULA=Y apt-get install -qqy --no-install-recommends msodbcsql18
 			else
 				ACCEPT_EULA=Y apt-get install -qqy --no-install-recommends '^msodbcsql[0-9]+$'
@@ -4539,6 +4549,13 @@ installRemoteModule() {
 				fi
 			fi
 			;;
+		statgrab)
+			if test -z "$installRemoteModule_version"; then
+				if test $PHP_MAJMIN_VERSION -le 704; then
+					installRemoteModule_version=0.6.0
+				fi
+			fi
+			;;
 		stomp)
 			if test -z "$installRemoteModule_version"; then
 				if test $PHP_MAJMIN_VERSION -le 506; then
@@ -4558,7 +4575,12 @@ installRemoteModule() {
 				elif test $PHP_MAJMIN_VERSION -le 504; then
 					installRemoteModule_version=2.0.4
 				elif test $PHP_MAJMIN_VERSION -le 506; then
-					installRemoteModule_version=2.0.11
+					# Using 2.0.11 when libpcre-dev is installed causes a Segmentation fault in php 5 (see https://github.com/mlocati/docker-php-extension-installer/issues/1282)
+					if test "$DISTRO" = debian && { dpkg -l 'libpcre*-dev' 2>/dev/null | grep -Eq '^ii'; }; then
+						installRemoteModule_version=2.0.10
+					else
+						installRemoteModule_version=2.0.11
+					fi
 				elif test $PHP_MAJMIN_VERSION -le 700; then
 					installRemoteModule_version=4.3.6
 				elif test $PHP_MAJMIN_VERSION -le 701; then
